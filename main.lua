@@ -20,6 +20,20 @@ local ESPLeft = ESPTab:AddLeftGroupbox("ESP Settings", "eye")
 local ESPRight = ESPTab:AddRightGroupbox("ESP Filters", "filter")
 
 -- UI Settings
+local MenuGroup = SettingsTab:AddLeftGroupbox("Menu", "wrench")
+
+MenuGroup:AddButton("Unload", function()
+    Library:Unload()
+end)
+
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
+    Default = "RightShift", 
+    NoUI = true, 
+    Text = "Menu keybind" 
+})
+
+Library.ToggleKeybind = Library.Options.MenuKeybind
+
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -33,8 +47,8 @@ SaveManager:BuildConfigSection(SettingsTab)
 
 SaveManager:LoadAutoloadConfig()
 
--- Возвращаем таблицу для других модулей
-return {
+-- Глобальная таблица для модулей
+_G.RolisHub = {
     Library = Library,
     Window = Window,
     Tabs = {
@@ -49,3 +63,5 @@ return {
     Options = Library.Options,
     Toggles = Library.Toggles
 }
+
+return _G.RolisHub
