@@ -1,5 +1,4 @@
 -- ОБФУСЦИРУЙ ЭТО ЧЕРЕЗ WEAREDEVS.NET
--- Ключ вшит сюда, не трогай строку ниже при обфускации или обфусцируй вместе с ней
 local KEY = "nikothebest"
 local BASE_URL = "https://raw.githubusercontent.com/Rolis38372/hub/refs/heads/main/"
 local MODULES_JSON = BASE_URL .. "modules.json"
@@ -8,7 +7,7 @@ local function get(url)
     return game:HttpGet(url, true)
 end
 
-local function loadModule(name, mainTable)
+local function loadModule(name)
     local url = BASE_URL .. name .. ".lua"
     local success, code = pcall(get, url)
     if not success then
@@ -22,11 +21,6 @@ local function loadModule(name, mainTable)
         return nil
     end
     
-    -- Передаем mainTable если есть
-    if mainTable then
-        setfenv(fn, setmetatable({Main = mainTable}, {__index = getfenv()}))
-    end
-    
     local success, result = pcall(fn)
     if not success then
         warn("[Loader] Failed to execute " .. name .. ": " .. tostring(result))
@@ -36,10 +30,10 @@ local function loadModule(name, mainTable)
     return result
 end
 
--- Проверка ключа (ввод через UI или вшитый - тут упрощенно для обфускации)
-local userKey = "nikothebest" -- В реальности: InputBox или вшитый при генерации
+-- Проверка ключа (простая, обфусцируй весь файл)
+local userKey = "nikothebest" -- Можешь заменить на Input вызов перед обфускацией
 if userKey ~= KEY then
-    game.Players.LocalPlayer:Kick("Invalid Key")
+    game.Players.LocalPlayer:Kick("Invalid Key: " .. tostring(userKey))
     return
 end
 
@@ -49,7 +43,7 @@ if not success then
     error("[Loader] Failed to load modules.json: " .. tostring(jsonData))
 end
 
--- Парсим JSON (простой вариант)
+-- Парсим JSON (простой)
 local modules = {}
 for name in jsonData:gmatch('"modules"%s*:%s*%[([^%]]+)%]') do
     for mod in name:gmatch('"([^"]+)"') do
@@ -58,21 +52,44 @@ for name in jsonData:gmatch('"modules"%s*:%s*%[([^%]]+)%]') do
 end
 
 if #modules == 0 then
-    -- Fallback если парсинг не сработал
     modules = {"main", "esp"}
 end
 
-local Main = nil
-
+-- Грузим main первым
+local mainLoaded = false
 for i, modName in ipairs(modules) do
     if modName == "main" then
-        Main = loadModule(modName)
-        if not Main then error("[Loader] Main module failed to load") end
-        _G.MainHub = Main
-    else
-        loadModule(modName, Main)
+        local result = loadModule(modName)
+        if result then
+            mainLoaded = true
+            print("[Loader] Main loaded")
+        else
+            error("[Loader] Main failed to load")
+        end
+        table.remove(modules, i)
+        break
     end
+end
+
+if not mainLoaded then
+    error("[Loader] Main module not found in modules.json")
+end
+
+-- Ждем инициализации _G.RolisHub
+local start = tick()
+while tick() - start < 3 do
+    if _G.RolisHub then break end
+    task.wait(0.05)
+end
+
+if not _G.RolisHub then
+    warn("[Loader] _G.RolisHub not initialized, continuing anyway...")
+end
+
+-- Грузим остальные модули
+for _, modName in ipairs(modules) do
+    loadModule(modName)
     task.wait(0.1)
 end
 
-print("[Loader] All modules loaded successfully")
+print("[Loader] All modules loaded")
