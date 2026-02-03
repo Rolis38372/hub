@@ -42,8 +42,6 @@ local Window = Library:CreateWindow({
 local KeyTab = nil
 local MainTab = nil
 local ESPTab = nil
-local WorldTab = nil
-local CharacterTab = nil
 local SettingsTab = nil
 
 -- Проверка ключа и создание интерфейса
@@ -56,8 +54,6 @@ local function createMainUI()
     -- Создаем основные табы
     MainTab = Window:AddTab("Main", "user")
     ESPTab = Window:AddTab("ESP", "eye")
-    WorldTab = Window:AddTab("World", "globe")
-    CharacterTab = Window:AddTab("Character", "user")
     SettingsTab = Window:AddTab("Settings", "settings")
     
     --========== MAIN TAB ==========
@@ -66,7 +62,12 @@ local function createMainUI()
     
     MainLeft:AddLabel("Welcome to Rolis Hub!", true)
     MainLeft:AddLabel("Version: 1.0", true)
-    MainLeft:AddLabel("Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name, true)
+    
+    local gameName = "Unknown"
+    pcall(function()
+        gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    end)
+    MainLeft:AddLabel("Game: " .. gameName, true)
     
     MainRight:AddButton("Rejoin Server", function()
         game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId)
@@ -274,107 +275,23 @@ local function createMainUI()
         end
     end)
     
-    --========== WORLD TAB ==========
-    local WorldLeft = WorldTab:AddLeftGroupbox("World", "globe")
-    local WorldRight = WorldTab:AddRightGroupbox("Lighting", "sun")
-    
-    local FullBright = false
-    WorldLeft:AddToggle("FullBright", {
-        Text = "Full Bright",
-        Default = false,
-        Callback = function(Value)
-            FullBright = Value
-            if Value then
-                game.Lighting.Brightness = 10
-                game.Lighting.ClockTime = 14
-                game.Lighting.FogEnd = 100000
-            else
-                game.Lighting.Brightness = 2
-            end
-        end
-    })
-    
-    WorldLeft:AddToggle("NoFog", {
-        Text = "No Fog",
-        Default = false,
-        Callback = function(Value)
-            if Value then
-                game.Lighting.FogEnd = 100000
-            else
-                game.Lighting.FogEnd = 1000
-            end
-        end
-    })
-    
-    --========== CHARACTER TAB ==========
-    local CharLeft = CharacterTab:AddLeftGroupbox("Movement", "move")
-    local CharRight = CharacterTab:AddRightGroupbox("Mods", "zap")
-    
-    local WalkSpeed = 16
-    local JumpPower = 50
-    local SpeedHack = false
-    
-    CharLeft:AddSlider("WalkSpeed", {
-        Text = "Walk Speed",
-        Default = 16,
-        Min = 16,
-        Max = 200,
-        Rounding = 0,
-        Callback = function(Value)
-            WalkSpeed = Value
-        end
-    })
-    
-    CharLeft:AddSlider("JumpPower", {
-        Text = "Jump Power",
-        Default = 50,
-        Min = 50,
-        Max = 200,
-        Rounding = 0,
-        Callback = function(Value)
-            JumpPower = Value
-        end
-    })
-    
-    CharLeft:AddToggle("SpeedHack", {
-        Text = "Speed Hack",
-        Default = false,
-        Callback = function(Value)
-            SpeedHack = Value
-        end
-    })
-    
-    CharRight:AddToggle("Fly", {
-        Text = "Fly (E)",
-        Default = false
-    }):AddKeyPicker("FlyKey", {
-        Default = "E",
-        Mode = "Toggle",
-        Text = "Fly Key"
-    })
-    
-    -- Character loop
-    RunService.Heartbeat:Connect(function()
-        local char = LocalPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                if SpeedHack then
-                    humanoid.WalkSpeed = WalkSpeed
-                else
-                    humanoid.WalkSpeed = 16
-                end
-                humanoid.JumpPower = JumpPower
-            end
-        end
-    end)
-    
     --========== SETTINGS TAB ==========
     local MenuGroup = SettingsTab:AddLeftGroupbox("Menu", "wrench")
     local ConfigGroup = SettingsTab:AddRightGroupbox("Config", "save")
     
     MenuGroup:AddButton("Unload", function()
         Library:Unload()
+    end)
+    
+    MenuGroup:AddButton("Clear Saved Key", function()
+        if isfile(XenoFolder .. "/" .. KeyFile) then
+            delfile(XenoFolder .. "/" .. KeyFile)
+            Library:Notify({
+                Title = "Key Cleared",
+                Description = "Restart script to enter new key",
+                Time = 3
+            })
+        end
     end)
     
     MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
@@ -404,21 +321,26 @@ end
 
 -- Проверка ключа
 if savedKey == KEY then
-    -- Ключ сохранён и верен — грузим UI
     createMainUI()
 else
-    -- Нет ключа или неверный — показываем Key Tab
     KeyTab = Window:AddKeyTab("Key System", "key")
     
     KeyTab:AddLabel({
-        Text = "Enter Key: nikothebest",
+        Text = "Enter your key to continue",
         DoesWrap = true,
         Size = 16
     })
     
+    KeyTab:AddLabel({
+        Text = "Key System",
+        DoesWrap = false,
+        Size = 14
+    })
+    
     KeyTab:AddKeyBox(function(Success, ReceivedKey)
-        if ReceivedKey == KEY then
-            saveKey(ReceivedKey)
+        local key = ReceivedKey or ""
+        if key == KEY then
+            saveKey(key)
             Library:Notify({
                 Title = "Success",
                 Description = "Key accepted! Loading...",
@@ -429,9 +351,14 @@ else
         else
             Library:Notify({
                 Title = "Error",
-                Description = "Invalid key: " .. ReceivedKey,
+                Description = "Invalid key!",
                 Time = 3
             })
         end
+    end)
+    
+    -- Unload для случайных людей
+    KeyTab:AddButton("Unload Script", function()
+        Library:Unload()
     end)
 end
